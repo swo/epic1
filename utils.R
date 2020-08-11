@@ -1,3 +1,4 @@
+library(tidyverse)
 library(lubridate)
 
 download_rates <- function() {
@@ -55,3 +56,14 @@ get_prevalence <- function(rates, county_name, date, infectious_period) {
 
   sum(county_rates$daily_rate)
 }
+
+# Get prevalence in Wake County on July 1 for 6 day infectious period
+# -> 3%
+rates <- get_rates()
+
+get_prevalence(
+  rates,
+  "Wake County",
+  mdy("07-01-2020"),
+  6
+)
