@@ -32,27 +32,28 @@ model <- function(pars) {
 
   with(pars, {
     # Compute parameters for each household member
-    ages <- c("employee", rep("adult", n_adults), rep("child", n_children))
-    n_household <- length(ages)
+    family_size = 1 + n_adults + n_children
+    ages <- c(rep("adult", 1 + n_adults), rep("child", n_children))
+    stopifnot(length(ages) == family_size)
 
     # Daily prob. of infection for household
     daily_p <- case_when(
-      ages %in% c("employee", "adult") ~ daily_p_adult,
+      ages == "adult" ~ daily_p_adult,
       ages == "child" ~ daily_p_child
     )
 
     p_fatal_if_hosp <- case_when(
-      ages %in% c("employee", "adult") ~ p_fatal_if_hosp_adult,
+      ages == "adult" ~ p_fatal_if_hosp_adult,
       ages == "child" ~ p_fatal_if_hosp_child
     )
 
     # Check for infection from outside (earliest is day 1)
     # for each household member
-    exposure_day <- rnbinom(n_household, 1, daily_p) + 1
+    exposure_day <- rnbinom(family_size, 1, daily_p) + 1
     symptoms_day <- exposure_day + t_incubate
 
     # Determine (potentially hypothetical) outcomes
-    is_symptomatic <- rbernoulli(n_household, 1 - p_asymptomatic)
+    is_symptomatic <- rbernoulli(family_size, 1 - p_asymptomatic)
     is_hospitalized <- is_symptomatic && rbernoulli(1, p_hosp_if_symp)
     is_fatal <- is_hospitalized && rbernoulli(1, p_fatal_if_hosp)
 
@@ -62,7 +63,7 @@ model <- function(pars) {
 
       # Index case has the chance to infect all other members
       p_attack <- case_when(
-        ages %in% c("employee", "adult") ~ p_attack_adult,
+        ages == "adult" ~ p_attack_adult,
         ages == "child" ~ p_attack_adult * r_attack_child
       )
 
@@ -73,7 +74,7 @@ model <- function(pars) {
       p_attack[index] <- 0
 
       # Determine if attacks "successful"
-      attacks <- rbernoulli(n_household, p_attack)
+      attacks <- rbernoulli(family_size, p_attack)
 
       # If successful, set exposure day to earlier of existing exposure
       # day and index's symptoms day
@@ -95,6 +96,8 @@ model <- function(pars) {
     )
 
     tibble(
+      id = 1:family_size,
+      is_employee = c(TRUE, rep(FALSE, family_size - 1)),
       age = ages,
       outcome = outcomes
     )

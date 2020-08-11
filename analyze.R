@@ -1,61 +1,67 @@
-source("model.R")
+library(tidyverse)
 
-# Set baseline parameters ---------------------------------------------
+# Load simulations -----------------------------------------------------
 
-base_pars <- list(
-  t_max = 14, # duration of simulation
-  n_adults = 0, # no. of adult cohabitants
-  n_children = 0, # no. of child cohabitants
-  p_immune = 0, # prob. of a priori immunity
-  contacts_adult = 3 / 7, # daily no. of contacts
-  contacts_child = 3 / 7,
-  prevalence = 0.05, # prevalence
-  p_transmit = 0.10, # prob. that exposure results in transmission
-  p_attack_adult = 0.25, # prob. that index case infects adult
-  r_attack_child = 0.50, # relative prob. that index infects child
-  r_asymp = 0.50, # relative prob. of infection from asymp. index
-  t_incubate = 6, # incubation period (days)
-  p_asymptomatic = 0.40, # prob. asymptomatic
-  p_hospitalized = 0.10, # prob. hospitalized (if infected)
-  p_fatal_if_hosp_adult = 0.05, # prob. fatal if hospitalized
-  p_fatal_if_hosp_child = 0.01 
-)
+results <- readRDS("cache/results.rds") %>%
+  unnest(cols = c(results))
 
-family_pars <- list_modify(
-  base_pars,
-  n_adults = 1,
-  n_children = 2
-)
+# Add absences --------------------------------------------------------
 
-# Run simulations -----------------------------------------------------
+add_absences <- function(df) {
+  mutate(df, absence_time = case_when(
+      outcome %in% c("not_infected", "presymptomatic", "asymptomatic") ~ 0,
+      is_employee & outcome == "fatal" ~ Inf,
+      is_employee & outcome == "hospitalized" ~ 30,
+      is_employee & outcome == "symptomatic" ~ 14,
+      !is_employee & outcome == "fatal" ~ 30,
+      !is_employee & outcome == "hospitalized" ~ 14,
+      !is_employee & outcome == "symptomatic" ~ 0
+  ))
+}
 
-tic <- Sys.time()
-
-results <- tibble(
-  family = c("employee_only", "family_of_4"),
-  n_adults = c(0, 1),
-  n_children = c(0, 2)
-) %>%
-  crossing(
-    iter = 1:5e2,
-    prevalence = c(0.01, 0.05, 0.10)
-  ) %>%
-  mutate(
-    pars = map(iter, ~ base_pars),
-    pars = map2(pars, n_adults, ~ list_modify(.x, n_adults = .y)),
-    pars = map2(pars, n_children, ~ list_modify(.x, n_children = .y)),
-    pars = map2(pars, prevalence, ~ list_modify(.x, prevalence = .y))
-  ) %>%
-  mutate(results = map(pars, model))
-
-toc <- Sys.time()
-
-cat("Ran", nrow(results), "simulations in", toc - tic, "sec.\n")
-
-results %>%
-  unnest(cols = c(results)) %>%
-  group_by(family, prevalence, age, outcome) %>%
-  summarize(n = n()) %>%
-  mutate(f = n / sum(n)) %>%
+# Get absence by scenario
+absences <- results %>%
+  add_absences() %>%
+  group_by(family, prevalence, daily_contacts, iter) %>%
+  summarize_at("absence_time", max) %>%
   ungroup() %>%
-  print(n = Inf)
+  count(family, prevalence, daily_contacts, absence_time)
+
+absences
+
+absences_plot <- absences %>%
+  ggplot(aes(factor(absence_time), n, fill = family)) +
+  facet_grid(rows = vars(prevalence), cols = vars(daily_contacts), labeller = label_both) +
+  geom_col(position = "dodge") +
+  labs(
+    x = "No. days absent", y = "No. simulations",
+    title = "Absence by family size, prevalence, and no. daily contacts",
+    caption = "Over 2 wk period"
+  ) +
+  theme_minimal()
+
+ggsave("results/absences.png", plot = absences_plot)
+
+# Get outcomes by scenario
+outcomes <- results %>%
+  filter(is_employee) %>%
+  count(family, prevalence, daily_contacts, outcome)
+
+outcomes
+
+outcomes_plot <- outcomes %>%
+  mutate(outcome = factor(outcome,
+      levels = c("not_infected", "presymptomatic", "asymptomatic", "symptomatic", "hospitalized", "fatal"),
+      labels = c("N.I.", "pre.", "asymp.", "symp.", "hosp.", "fatal")
+  )) %>%
+  ggplot(aes(outcome, n, fill = family)) +
+  facet_grid(rows = vars(prevalence), cols = vars(daily_contacts), labeller = label_both) +
+  geom_col(position = "dodge") +
+  labs(
+    x = "Employee health outcome", y = "No. simulations",
+    title = "Outcomes by family size, prevalence, and no. daily contacts",
+    caption = "Over 2 wk period. N.I. = not infected. pre. = presymptomatic/incubating."
+  ) +
+  theme_minimal()
+
+ggsave("results/outcomes.png", plot = outcomes_plot)
