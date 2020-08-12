@@ -1,4 +1,5 @@
 library(tidyverse)
+library(cowplot)
 
 # Load simulations -----------------------------------------------------
 
@@ -19,7 +20,8 @@ add_absences <- function(df) {
   ))
 }
 
-# Get absence by scenario
+# Get absence by scenario ---------------------------------------------
+
 absences <- results %>%
   add_absences() %>%
   group_by(family, prevalence, daily_contacts, iter) %>%
@@ -31,18 +33,28 @@ absences
 
 absences_plot <- absences %>%
   ggplot(aes(factor(absence_time), n, fill = family)) +
-  facet_grid(rows = vars(prevalence), cols = vars(daily_contacts), labeller = label_both) +
+  facet_grid(
+    rows = vars(prevalence),
+    cols = vars(daily_contacts),
+    labeller = label_both
+  ) +
   geom_col(position = "dodge") +
   labs(
-    x = "No. days absent", y = "No. simulations",
-    title = "Absence by family size, prevalence, and no. daily contacts",
+    x = "No. days absent",
+    y = "No. simulations",
+    title = "Absence by family size, prevalence, and no. contacts",
     caption = "Over 2 wk period"
   ) +
-  theme_minimal()
+  theme_cowplot() +
+  theme(
+    legend.title = element_blank(),
+    legend.position = c(0.85, 0.9)
+  )
 
-ggsave("results/absences.png", plot = absences_plot)
+ggsave("results/absences.png", plot = absences_plot, width = 5, height = 4)
 
-# Get outcomes by scenario
+# Get outcomes by scenario --------------------------------------------
+
 outcomes <- results %>%
   filter(is_employee) %>%
   count(family, prevalence, daily_contacts, outcome)
@@ -52,16 +64,37 @@ outcomes
 outcomes_plot <- outcomes %>%
   mutate(outcome = factor(outcome,
       levels = c("not_infected", "presymptomatic", "asymptomatic", "symptomatic", "hospitalized", "fatal"),
-      labels = c("N.I.", "pre.", "asymp.", "symp.", "hosp.", "fatal")
+      labels = c("N.I.", "pre.", "asy.", "sym.", "hosp.", "fatal")
   )) %>%
   ggplot(aes(outcome, n, fill = family)) +
   facet_grid(rows = vars(prevalence), cols = vars(daily_contacts), labeller = label_both) +
   geom_col(position = "dodge") +
   labs(
-    x = "Employee health outcome", y = "No. simulations",
-    title = "Outcomes by family size, prevalence, and no. daily contacts",
+    x = "Employee health outcome",
+    y = "No. simulations",
+    title = "Outcomes by family size, prevalence, and no. contacts",
     caption = "Over 2 wk period. N.I. = not infected. pre. = presymptomatic/incubating."
   ) +
-  theme_minimal()
+  theme_cowplot() +
+  theme(
+    legend.title = element_blank(),
+    legend.position = c(0.85, 0.9)
+  )
 
-ggsave("results/outcomes.png", plot = outcomes_plot)
+ggsave("results/outcomes.png", plot = outcomes_plot, width = 5, height = 4)
+
+# Make a table of outcomes
+
+outcomes_table <- outcomes %>%
+  mutate(sympto_plus = outcome %in% c("symptomatic", "hospitalized", "fatal")) %>%
+  group_by(family, prevalence, daily_contacts, sympto_plus) %>%
+  summarize_at("n", sum) %>%
+  mutate(f = n / sum(n)) %>%
+  ungroup() %>%
+  filter(sympto_plus) %>%
+  select(family, prevalence, daily_contacts, f) %>%
+  mutate_at("f", ~ scales::percent(., accuracy = 1)) %>%
+  pivot_wider(names_from = family, values_from = f) %>%
+  arrange(daily_contacts, prevalence)
+
+write_tsv(outcomes_table, "results/outcomes.tsv")
