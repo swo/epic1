@@ -9,15 +9,13 @@ check_pars <- function(pars) {
   })
 }
 
+# Compute derived parameters and add them to the parameter list
 derive_pars <- function(pars) {
   with(pars, {
     list_modify(
       pars,
       # Prob. hospitalized if symptomatic
-      p_hosp_if_symp = p_hospitalized / (1 - p_asymptomatic),
-      # Daily prob. of infection
-      daily_p_adult = 1 - (1 - p_transmit) ** (contacts_adult * prevalence),
-      daily_p_child = 1 - (1 - p_transmit) ** (contacts_child * prevalence)
+      p_hosp_if_symp = p_hospitalized / (1 - p_asymptomatic)
     )
   })
 }
@@ -38,8 +36,8 @@ model <- function(pars) {
 
     # Daily prob. of infection for household
     daily_p <- case_when(
-      ages == "adult" ~ daily_p_adult,
-      ages == "child" ~ daily_p_child
+      ages == "adult" ~ incidence * r_adult,
+      ages == "child" ~ incidence * r_child
     )
 
     p_fatal_if_hosp <- case_when(

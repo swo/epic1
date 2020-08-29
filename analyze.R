@@ -24,25 +24,25 @@ add_absences <- function(df) {
 
 absences <- results %>%
   add_absences() %>%
-  group_by(family, prevalence, daily_contacts, iter) %>%
+  group_by(family, incidence, r_infect, iter) %>%
   summarize_at("absence_time", max) %>%
   ungroup() %>%
-  count(family, prevalence, daily_contacts, absence_time)
+  count(family, incidence, r_infect, absence_time)
 
 absences
 
 absences_plot <- absences %>%
   ggplot(aes(factor(absence_time), n, fill = family)) +
   facet_grid(
-    rows = vars(prevalence),
-    cols = vars(daily_contacts),
+    rows = vars(incidence),
+    cols = vars(r_infect),
     labeller = label_both
   ) +
   geom_col(position = "dodge") +
   labs(
     x = "No. days absent",
     y = "No. simulations",
-    title = "Absence by family size, prevalence, and no. contacts",
+    title = "Absence by family size, incidence, and relative risk",
     caption = "Over 2 wk period"
   ) +
   theme_cowplot() +
@@ -57,7 +57,7 @@ ggsave("results/absences.png", plot = absences_plot, width = 5, height = 4)
 
 outcomes <- results %>%
   filter(is_employee) %>%
-  count(family, prevalence, daily_contacts, outcome)
+  count(family, incidence, r_infect, outcome)
 
 outcomes
 
@@ -67,12 +67,12 @@ outcomes_plot <- outcomes %>%
       labels = c("N.I.", "pre.", "asy.", "sym.", "hosp.", "fatal")
   )) %>%
   ggplot(aes(outcome, n, fill = family)) +
-  facet_grid(rows = vars(prevalence), cols = vars(daily_contacts), labeller = label_both) +
+  facet_grid(rows = vars(incidence), cols = vars(r_infect), labeller = label_both) +
   geom_col(position = "dodge") +
   labs(
     x = "Employee health outcome",
     y = "No. simulations",
-    title = "Outcomes by family size, prevalence, and no. contacts",
+    title = "Outcomes by family size, incidence, and relative risk",
     caption = "Over 2 wk period. N.I. = not infected. pre. = presymptomatic/incubating."
   ) +
   theme_cowplot() +
@@ -87,14 +87,14 @@ ggsave("results/outcomes.png", plot = outcomes_plot, width = 5, height = 4)
 
 outcomes_table <- outcomes %>%
   mutate(sympto_plus = outcome %in% c("symptomatic", "hospitalized", "fatal")) %>%
-  group_by(family, prevalence, daily_contacts, sympto_plus) %>%
+  group_by(family, incidence, r_infect, sympto_plus) %>%
   summarize_at("n", sum) %>%
   mutate(f = n / sum(n)) %>%
   ungroup() %>%
   filter(sympto_plus) %>%
-  select(family, prevalence, daily_contacts, f) %>%
+  select(family, incidence, r_infect, f) %>%
   mutate_at("f", ~ scales::percent(., accuracy = 1)) %>%
   pivot_wider(names_from = family, values_from = f) %>%
-  arrange(daily_contacts, prevalence)
+  arrange(r_infect, incidence)
 
 write_tsv(outcomes_table, "results/outcomes.tsv")

@@ -1,9 +1,13 @@
 # Epic model
 
 This model simulates the transmission of COVID-19 to an employee or their
-household, transmission within the household, the health outcomes experienced
-by members of the household, and the effects of those outcomes on the
-employee's absenteeism.
+household, transmission within the household, the health outcomes
+experienced by members of the household, and the effects of those outcomes
+on the employee's absenteeism.
+
+## To do
+
+- Clean up rates calculator
 
 ## White papers
 
