@@ -3,36 +3,40 @@ library(cowplot)
 
 # Load simulations -----------------------------------------------------
 
-results <- readRDS("cache/results.rds") %>%
-  unnest(cols = c(results))
+results <- readRDS("cache/results.rds")
 
 # Add absences --------------------------------------------------------
 
-add_absences <- function(df) {
-  mutate(df, absence_time = case_when(
-      outcome %in% c("not_infected", "presymptomatic", "asymptomatic") ~ 0,
-      is_employee & outcome == "fatal" ~ Inf,
-      is_employee & outcome == "hospitalized" ~ 30,
-      is_employee & outcome == "symptomatic" ~ 14,
-      !is_employee & outcome == "fatal" ~ 30,
-      !is_employee & outcome == "hospitalized" ~ 14,
-      !is_employee & outcome == "symptomatic" ~ 0
-  ))
+compute_absence <- function(results) {
+  with(results, {
+    case_when(
+      # employee dies
+      outcome[1] == "fatal" ~ Inf,
+      # employee hospitalized, or cohabitant dies
+      outcome[1] == "hospitalized" ~ 30,
+      "fatal" %in% outcome ~ 30,
+      # employee symptomatic, cohabitant hospitalized, or
+      # adult cohabitant is symptomatic and there are children
+      outcome[1] == "symptomatic" ~ 14,
+      "hospitalized" %in% outcome ~ 14,
+      any(age == "adult" & outcome == "symptomatic") &
+        "child" %in% age ~ 14,
+      # any other outcome has no absence
+      TRUE ~ 0
+    )
+  })
 }
 
 # Get absence by scenario ---------------------------------------------
 
 absences <- results %>%
-  add_absences() %>%
-  group_by(family, incidence, r_infect, iter) %>%
-  summarize_at("absence_time", max) %>%
-  ungroup() %>%
-  count(family, incidence, r_infect, absence_time)
+  mutate(absence = map_dbl(results, compute_absence)) %>%
+  count(family, incidence, r_infect, absence)
 
 absences
 
 absences_plot <- absences %>%
-  ggplot(aes(factor(absence_time), n, fill = family)) +
+  ggplot(aes(factor(absence), n, fill = family)) +
   facet_grid(
     rows = vars(incidence),
     cols = vars(r_infect),
@@ -56,17 +60,18 @@ ggsave("results/absences.png", plot = absences_plot, width = 5, height = 4)
 # Get outcomes by scenario --------------------------------------------
 
 outcomes <- results %>%
-  filter(is_employee) %>%
-  count(family, incidence, r_infect, outcome)
+  # get the employee outcome
+  mutate(employee_outcome = map_chr(results, ~ .$outcome[1])) %>%
+  count(family, incidence, r_infect, employee_outcome)
 
 outcomes
 
 outcomes_plot <- outcomes %>%
-  mutate(outcome = factor(outcome,
+  mutate(employee_outcome = factor(employee_outcome,
       levels = c("not_infected", "presymptomatic", "asymptomatic", "symptomatic", "hospitalized", "fatal"),
       labels = c("N.I.", "pre.", "asy.", "sym.", "hosp.", "fatal")
   )) %>%
-  ggplot(aes(outcome, n, fill = family)) +
+  ggplot(aes(employee_outcome, n, fill = family)) +
   facet_grid(rows = vars(incidence), cols = vars(r_infect), labeller = label_both) +
   geom_col(position = "dodge") +
   labs(
@@ -86,14 +91,14 @@ ggsave("results/outcomes.png", plot = outcomes_plot, width = 5, height = 4)
 # Make a table of outcomes
 
 outcomes_table <- outcomes %>%
-  mutate(sympto_plus = outcome %in% c("symptomatic", "hospitalized", "fatal")) %>%
+  mutate(sympto_plus = employee_outcome %in% c("symptomatic", "hospitalized", "fatal")) %>%
   group_by(family, incidence, r_infect, sympto_plus) %>%
   summarize_at("n", sum) %>%
   mutate(f = n / sum(n)) %>%
   ungroup() %>%
   filter(sympto_plus) %>%
   select(family, incidence, r_infect, f) %>%
-  mutate_at("f", ~ scales::percent(., accuracy = 1)) %>%
+  mutate_at("f", ~ scales::percent(., accuracy = 0.01)) %>%
   pivot_wider(names_from = family, values_from = f) %>%
   arrange(r_infect, incidence)
 

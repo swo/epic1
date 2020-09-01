@@ -35,7 +35,7 @@ results <- tibble(
   n_children = c(0, 2)
 ) %>%
   crossing(
-    iter = 1:1e2,
+    iter = 1:1e4,
     incidence = c(1 / 2500, 1 / 5000, 1 / 10000),
     r_infect = c(0.25, 0.5, 1.0)
   ) %>%
