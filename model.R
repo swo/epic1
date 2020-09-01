@@ -55,34 +55,28 @@ model <- function(pars) {
     is_hospitalized <- is_symptomatic && rbernoulli(1, p_hosp_if_symp)
     is_fatal <- is_hospitalized && rbernoulli(1, p_fatal_if_hosp)
 
-    # Determine the household index case (if any)
-    if (min(symptoms_day) <= t_max) {
-      index <- which.min(symptoms_day)
+    # Intra-household infections --------------------------------------
 
-      # Index case has the chance to infect all other members
-      p_attack <- case_when(
-        age_categories == "adult" ~ p_attack_adult,
-        age_categories == "child" ~ p_attack_adult * r_attack_child
-      )
+    # Determine the index case
+    index <- which.min(exposure_day)
 
-      # If asymptomatic, downgrade transmissivity
-      if (!is_symptomatic[index]) p_attack <- p_attack * r_asymp
+    # Determine the attack rate for that person
+    p_attack <- p_attack_adult *
+      if_else(age_categories[index] == "child", r_attack_child, 1) *
+      if_else(is_symptomatic[index], 1, r_asymp)
 
-      # Index case can't infect themselves
-      p_attack[index] <- 0
+    # Determine if attacks are successful
+    successful_attack <- rbernoulli(family_size, p_attack)
 
-      # Determine if attacks "successful"
-      attacks <- rbernoulli(family_size, p_attack)
+    # If attack successful, set exposure date to minimum of old exposure
+    # date and index's symptom date
+    exposure_day[successful_attack] <- pmin(
+      exposure_day[successful_attack],
+      symptoms_day[index]
+    )
 
-      # If successful, set exposure day to earlier of existing exposure
-      # day and index's symptoms day
-      exposure_day[attacks] <- pmin(
-        exposure_day[attacks],
-        symptoms_day[index]
-      )
-
-      symptoms_day <- exposure_day + t_incubate
-    }
+    # Update symptoms days based on new exposures
+    symptoms_day <- exposure_day + t_incubate
 
     outcomes <- case_when(
       exposure_day > t_max ~ "not_infected",
