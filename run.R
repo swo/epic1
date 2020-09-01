@@ -7,7 +7,7 @@ risks_by_age <- readRDS("cache/risks_by_age.rds")
 
 base_pars <- list(
   ages = c(35), # ages of household, with employee first
-  t_max = 14, # duration of simulation
+  t_max = 21, # duration of simulation
   p_immune = 0, # prob. of a priori immunity
   r_adult = 0.25, # rel. risk of infection for adult
   r_child = 0.25, # rel. risk of infection for child
@@ -36,8 +36,8 @@ results <- tibble(
 ) %>%
   crossing(
     iter = 1:1e3,
-    incidence = c(1 / 2500, 1 / 5000, 1 / 10000),
-    r_infect = c(0.25, 0.5, 1.0)
+    incidence = c(1 / 2500, 1 / 10000),
+    r_infect = c(0.25, 1.0)
   ) %>%
   mutate(
     pars = map(iter, ~ base_pars),

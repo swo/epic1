@@ -1,11 +1,10 @@
 library(tidyverse)
-library(cowplot)
 
 # Load simulations -----------------------------------------------------
 
-results <- readRDS("cache/results.rds")
+raw_results <- readRDS("cache/results.rds")
 
-# Add absences --------------------------------------------------------
+# Add absences and employee outcomes ----------------------------------
 
 compute_absence <- function(results) {
   with(results, {
@@ -27,79 +26,20 @@ compute_absence <- function(results) {
   })
 }
 
-# Get absence by scenario ---------------------------------------------
+compute_employee_outcome <- function(results) results$outcome[1]
 
-absences <- results %>%
-  mutate(absence = map_dbl(results, compute_absence)) %>%
-  count(family, incidence, r_infect, absence)
-
-absences
-
-absences_plot <- absences %>%
-  ggplot(aes(factor(absence), n, fill = family)) +
-  facet_grid(
-    rows = vars(incidence),
-    cols = vars(r_infect),
-    labeller = label_both
-  ) +
-  geom_col(position = "dodge") +
-  labs(
-    x = "No. days absent",
-    y = "No. simulations",
-    title = "Absence by family size, incidence, and relative risk",
-    caption = "Over 2 wk period"
-  ) +
-  theme_cowplot() +
-  theme(
-    legend.title = element_blank(),
-    legend.position = c(0.85, 0.9)
+results <- raw_results %>%
+  mutate(
+    incidence_1_per = 1 / incidence,
+    absence = map_dbl(results, compute_absence),
+    employee_outcome = map_chr(results, compute_employee_outcome),
+    any_absence = absence > 0,
+    sympto_plus = employee_outcome %in% c("symptomatic", "hospitalized", "fatal")
   )
 
-ggsave("results/absences.png", plot = absences_plot, width = 5, height = 4)
+results_table <- results %>%
+  select(incidence_1_per, r_infect, family, any_absence, sympto_plus) %>%
+  group_by(incidence_1_per, r_infect, family) %>%
+  summarize_at(c("any_absence", "sympto_plus"), sum)
 
-# Get outcomes by scenario --------------------------------------------
-
-outcomes <- results %>%
-  # get the employee outcome
-  mutate(employee_outcome = map_chr(results, ~ .$outcome[1])) %>%
-  count(family, incidence, r_infect, employee_outcome)
-
-outcomes
-
-outcomes_plot <- outcomes %>%
-  mutate(employee_outcome = factor(employee_outcome,
-      levels = c("not_infected", "presymptomatic", "asymptomatic", "symptomatic", "hospitalized", "fatal"),
-      labels = c("N.I.", "pre.", "asy.", "sym.", "hosp.", "fatal")
-  )) %>%
-  ggplot(aes(employee_outcome, n, fill = family)) +
-  facet_grid(rows = vars(incidence), cols = vars(r_infect), labeller = label_both) +
-  geom_col(position = "dodge") +
-  labs(
-    x = "Employee health outcome",
-    y = "No. simulations",
-    title = "Outcomes by family size, incidence, and relative risk",
-    caption = "Over 2 wk period. N.I. = not infected. pre. = presymptomatic/incubating."
-  ) +
-  theme_cowplot() +
-  theme(
-    legend.title = element_blank(),
-    legend.position = c(0.85, 0.9)
-  )
-
-ggsave("results/outcomes.png", plot = outcomes_plot, width = 5, height = 4)
-
-# Make a table of outcomes
-
-outcomes_table <- outcomes %>%
-  mutate(sympto_plus = employee_outcome %in% c("symptomatic", "hospitalized", "fatal")) %>%
-  group_by(family, incidence, r_infect, sympto_plus) %>%
-  summarize_at("n", sum) %>%
-  mutate(f = n / sum(n)) %>%
-  ungroup() %>%
-  filter(sympto_plus) %>%
-  select(family, incidence, r_infect, f) %>%
-  mutate_at("f", ~ scales::percent(., accuracy = 0.01)) %>%
-  pivot_wider(names_from = family, values_from = f) %>%
-  arrange(r_infect, incidence)
-
-write_tsv(outcomes_table, "results/outcomes.tsv")
+write_tsv(results_table, "results/results.tsv")

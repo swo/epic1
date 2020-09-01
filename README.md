@@ -9,6 +9,7 @@ on the employee's absenteeism.
 
 - Understand inputs from Epic
 - Clean up incidence scraper
+    - Change name from `utils.R` to something more accurate
 
 ## White papers
 

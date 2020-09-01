@@ -1,4 +1,4 @@
-results/outcomes.tsv: analyze.R cache/results.rds
+results/results.tsv: analyze.R cache/results.rds
 	Rscript $<
 
 cache/results.rds: run.R model.R cache/risks_by_age.rds
