@@ -35,12 +35,21 @@ model <- function(pars) {
       which(. >= risks_by_age$min_age & . <= risks_by_age$max_age)
     )
 
+    # What are the risk ratios for male and female, compared to average?
+    # (Change reference from male to average)
+    r_sex <- case_when(
+      sexes == "M" ~ 2 * r_male / (1 + r_male),
+      sexes == "F" ~ 2 / (1 + r_male),
+      sexes == "X" ~ 1
+    )
+
     # Compute probability of hospitalization and fatality-if-hosp.
     # from reference risk and age-adjusted risk ratios
-    p_hosp_if_symp <- p_hospitalized / (1 - p_asymptomatic) * risks_by_age$r_hosp[age_i]
-    p_fatal_if_hosp <- p_fatal_if_hosp * risks_by_age$r_fatal_if_hosp[age_i]
+    p_hosp_if_symp <- p_hospitalized / (1 - p_asymptomatic) * risks_by_age$r_hosp[age_i] * r_sex
+    p_fatal_if_hosp <- p_fatal_if_hosp * risks_by_age$r_fatal_if_hosp[age_i] * r_sex
 
     # Check lengths
+    stopifnot(length(r_sex) == family_size)
     stopifnot(length(daily_p) == family_size)
     stopifnot(length(p_hosp_if_symp) == family_size)
     stopifnot(length(p_fatal_if_hosp) == family_size)
