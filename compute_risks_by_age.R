@@ -4,7 +4,7 @@ library(tidyverse)
 # https://www.cdc.gov/coronavirus/2019-ncov/covid-data/covidview/index.html
 
 risks <- tribble(
-  ~min_age, ~max_age, ~rr_hosp, ~rr_death,
+  ~min_age, ~max_age, ~r_hosp, ~r_fatal,
   0, 4, 1 / 4, 1 / 9,
   5, 17, 1 / 9, 1 / 16,
   18, 29, 1, 1,
@@ -17,11 +17,11 @@ risks <- tribble(
 ) %>%
   # Adjust to that 30-39 is the reference class
   mutate(
-    rr_hosp = rr_hosp / rr_hosp[min_age == 30],
-    rr_death = rr_death / rr_death[min_age == 30],
+    r_hosp =  r_hosp /  r_hosp[min_age == 30],
+    r_fatal = r_fatal / r_fatal[min_age == 30],
   ) %>%
   # Add rel. risk of death given hospitalization
-  mutate(rr_death_hosp = rr_death / rr_hosp)
+  mutate(r_fatal_if_hosp = r_fatal / r_hosp)
 
 risks
 

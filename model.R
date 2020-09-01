@@ -9,41 +9,41 @@ check_pars <- function(pars) {
   })
 }
 
-# Compute derived parameters and add them to the parameter list
-derive_pars <- function(pars) {
-  with(pars, {
-    list_modify(
-      pars,
-      # Prob. hospitalized if symptomatic
-      p_hosp_if_symp = p_hospitalized / (1 - p_asymptomatic)
-    )
-  })
-}
-
 # Main function -------------------------------------------------------
 
 model <- function(pars) {
   # Check parameter validity
   check_pars(pars)
-  # Add derived parameters
-  pars <- derive_pars(pars)
 
   with(pars, {
     # Compute parameters for each household member
-    family_size = 1 + n_adults + n_children
-    ages <- c(rep("adult", 1 + n_adults), rep("child", n_children))
-    stopifnot(length(ages) == family_size)
+    family_size <- length(ages)
+    age_categories <- case_when(
+      ages < 18 ~ "child",
+      TRUE ~ "adult"
+    )
 
     # Daily prob. of infection for household
     daily_p <- case_when(
-      ages == "adult" ~ incidence * r_adult,
-      ages == "child" ~ incidence * r_child
+      age_categories == "adult" ~ incidence * r_adult,
+      age_categories == "child" ~ incidence * r_child
     )
 
-    p_fatal_if_hosp <- case_when(
-      ages == "adult" ~ p_fatal_if_hosp_adult,
-      ages == "child" ~ p_fatal_if_hosp_child
+    # In the table of risks by age, which row does each household
+    # member fall into?
+    age_i <- map_int(ages, ~
+      which(. >= risks_by_age$min_age & . <= risks_by_age$max_age)
     )
+
+    # Compute probability of hospitalization and fatality-if-hosp.
+    # from reference risk and age-adjusted risk ratios
+    p_hosp_if_symp <- p_hospitalized / (1 - p_asymptomatic) * risks_by_age$r_hosp[age_i]
+    p_fatal_if_hosp <- p_fatal_if_hosp * risks_by_age$r_fatal_if_hosp[age_i]
+
+    # Check lengths
+    stopifnot(length(daily_p) == family_size)
+    stopifnot(length(p_hosp_if_symp) == family_size)
+    stopifnot(length(p_fatal_if_hosp) == family_size)
 
     # Check for infection from outside (earliest is day 1)
     # for each household member
@@ -61,8 +61,8 @@ model <- function(pars) {
 
       # Index case has the chance to infect all other members
       p_attack <- case_when(
-        ages == "adult" ~ p_attack_adult,
-        ages == "child" ~ p_attack_adult * r_attack_child
+        age_categories == "adult" ~ p_attack_adult,
+        age_categories == "child" ~ p_attack_adult * r_attack_child
       )
 
       # If asymptomatic, downgrade transmissivity
@@ -97,6 +97,7 @@ model <- function(pars) {
       id = 1:family_size,
       is_employee = c(TRUE, rep(FALSE, family_size - 1)),
       age = ages,
+      age_category = age_categories,
       outcome = outcomes
     )
   })
