@@ -7,9 +7,15 @@ on the employee's absenteeism.
 
 ## To do
 
-- Clean up incidence scraper
-    - Change name from `utils.R` to something more accurate
 - Add notes here about how to run employee data
+
+## Getting started
+
+1. Download R
+2. Install packages in R: `install.packages(c("tidyverse", "lubridate", "zoo"))`
+3. Ensure the input employee data is in the right place (see below)
+4. Run `make`
+5. Interpret the output file `results/results.tsv`
 
 ## Input data
 
@@ -31,9 +37,10 @@ The scripts expect a file `employees.tsv` in this folder. This file should be ta
 - `model.R`: Main modeling functions
 - `run.R`: Runs simulations and stores the results
 - `analyze.R`: Loads stored results and produces plots and tables
-- `utils.R`: Script to scrape incidences in different counties
+- `scrape_state_data.R`: Script to scrape incidences by state
 - `compute_risks_by_age.R`: Derives certain risk ratios by age
 - `generate_fake_data.R`: Generates fake employee data for debugging
+- `utils.R`: Utility functions shared across scripts
 - `Makefile`: Automated model running using `make`
 - `cache/`: Stored simulation results
-- `results/`: Output figures and tables
+- `results/`: Output tables

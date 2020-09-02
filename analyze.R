@@ -30,7 +30,6 @@ compute_employee_outcome <- function(results) results$outcome[1]
 
 results <- raw_results %>%
   mutate(
-    incidence_1_per = 1 / incidence,
     absence = map_dbl(results, compute_absence),
     employee_outcome = map_chr(results, compute_employee_outcome),
     any_absence = absence > 0,
@@ -38,8 +37,14 @@ results <- raw_results %>%
   )
 
 results_table <- results %>%
-  select(incidence_1_per, r_infect, family, any_absence, sympto_plus) %>%
-  group_by(incidence_1_per, r_infect, family) %>%
-  summarize_at(c("any_absence", "sympto_plus"), sum)
+  select(iter, any_absence, sympto_plus) %>%
+  group_by(iter) %>%
+  summarize(
+    any_absence = sum(any_absence),
+    sympto_plus = sum(sympto_plus),
+    n_employees = n()
+  )
+
+results_table
 
 write_tsv(results_table, "results/results.tsv")
