@@ -7,9 +7,18 @@ on the employee's absenteeism.
 
 ## To do
 
-- Understand inputs from Epic
 - Clean up incidence scraper
     - Change name from `utils.R` to something more accurate
+- Add notes here about how to run employee data
+
+## Input data
+
+The scripts expect a file `employees.tsv` in this folder. This file should be tab-separated, with at least the following 4 columns:
+
+- `state`: 2-letter abbreviations
+- `sex`: either `M` or `F`
+- `age`: an integer between 1 and 100
+- `n_dependents` (number of dependents): a nonnegative integer
 
 ## White papers
 
@@ -24,6 +33,7 @@ on the employee's absenteeism.
 - `analyze.R`: Loads stored results and produces plots and tables
 - `utils.R`: Script to scrape incidences in different counties
 - `compute_risks_by_age.R`: Derives certain risk ratios by age
+- `generate_fake_data.R`: Generates fake employee data for debugging
 - `Makefile`: Automated model running using `make`
 - `cache/`: Stored simulation results
 - `results/`: Output figures and tables
