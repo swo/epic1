@@ -12,6 +12,7 @@ on the employee's absenteeism.
 3. Ensure the input employee data is in the right place (see below)
 4. Run `make`
 5. Interpret the output file `results/results.tsv`
+6. Make adjustments to `run_employees.R`, such as increasing the number of iterations (`n_iter`) or the epidemiological parameters (`base_pars`).
 
 ## Input data
 
@@ -31,7 +32,7 @@ The scripts expect a file `employees.tsv` in this folder. This file should be ta
 ## File overview
 
 - `model.R`: Main modeling functions
-- `run.R`: Runs simulations and stores the results
+- `run_employees.R`: Runs simulations and stores the results
 - `analyze.R`: Loads stored results and produces plots and tables
 - `scrape_state_data.R`: Script to scrape incidences by state
 - `compute_risks_by_age.R`: Derives certain risk ratios by age
