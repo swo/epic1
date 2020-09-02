@@ -5,10 +5,6 @@ household, transmission within the household, the health outcomes
 experienced by members of the household, and the effects of those outcomes
 on the employee's absenteeism.
 
-## To do
-
-- Add notes here about how to run employee data
-
 ## Getting started
 
 1. Download R
