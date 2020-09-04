@@ -48,7 +48,7 @@ download_data <- function(avg_window = 7) {
   incidence
 }
 
-get_incidence <- function(date = today() - ddays(1), fn = "cache/state_incidences.rds") {
+get_incidence <- function(date = today() - ddays(2), fn = "cache/state_incidences.rds") {
   data <- NULL
 
   # If the file exists, load it, and check if it is up-to-date
